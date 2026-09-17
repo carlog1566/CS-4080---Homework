@@ -30,6 +30,9 @@ public class GenerateAst {
 //> Control Flow logical-ast
       "Logical  : Expr left, Token operator, Expr right",
 //< Control Flow logical-ast
+//> ternary-expr
+      "Ternary  : Expr condition, Expr thenBranch, Expr elseBranch",
+//< ternary-expr
 //> Classes set-ast
       "Set      : Expr object, Token name, Expr value",
 //< Classes set-ast

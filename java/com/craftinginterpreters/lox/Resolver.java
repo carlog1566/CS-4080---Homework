@@ -268,6 +268,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 //< visit-logical-expr
+//> visit-ternary-expr
+  @Override
+  public Void visitTernaryExpr(Expr.Ternary expr) {
+    resolve(expr.condition);
+    resolve(expr.thenBranch);
+    resolve(expr.elseBranch);
+    return null;
+  }
 //> Classes resolver-visit-set
   @Override
   public Void visitSetExpr(Expr.Set expr) {

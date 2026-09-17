@@ -306,7 +306,7 @@ class Parser {
     Expr expr = equality();
 */
 //> Control Flow or-in-assignment
-    Expr expr = or();
+    Expr expr = conditional();
 //< Control Flow or-in-assignment
 
     if (match(EQUAL)) {
@@ -329,6 +329,25 @@ class Parser {
     return expr;
   }
 //< Statements and State parse-assignment
+//> Control Flow conditional
+  private Expr conditional() {
+    Expr expr = or();
+
+    if (match(QUESTION)) {
+      Expr thenBranch = expression();
+
+      consume(COLON, "Expect ':' after expression.");
+
+      Expr elseBranch = conditional();
+
+      expr = new Expr.Ternary(
+        expr, thenBranch, elseBranch
+      );
+    }
+    
+    return expr;
+  }
+//< Control Flow conditional
 //> Control Flow or
   private Expr or() {
     Expr expr = and();

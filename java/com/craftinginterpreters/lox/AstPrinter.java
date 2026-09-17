@@ -175,6 +175,16 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     return parenthesize(expr.operator.lexeme, expr.left, expr.right);
   }
 //< Control Flow omit
+//> Ternary operator
+  @Override
+  public String visitTernaryExpr(Expr.Ternary expr) {
+    return parenthesize("?:",
+      expr.condition,
+      expr.thenBranch,
+      expr.elseBranch
+    );
+  }
+//< Ternary operator
 //> Classes omit
 
   @Override

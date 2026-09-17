@@ -12,6 +12,7 @@ abstract class Expr {
     R visitGroupingExpr(Grouping expr);
     R visitLiteralExpr(Literal expr);
     R visitLogicalExpr(Logical expr);
+    R visitTernaryExpr(Ternary expr);
     R visitSetExpr(Set expr);
     R visitSuperExpr(Super expr);
     R visitThisExpr(This expr);
@@ -134,6 +135,24 @@ abstract class Expr {
     final Expr right;
   }
 //< expr-logical
+//> expr-ternary
+  static class Ternary extends Expr {
+    Ternary(Expr condition, Expr thenBranch, Expr elseBranch) {
+      this.condition = condition;
+      this.thenBranch = thenBranch;
+      this.elseBranch = elseBranch;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitTernaryExpr(this);
+    }
+
+    final Expr condition;
+    final Expr thenBranch;
+    final Expr elseBranch;
+  }
+//< expr-ternary
 //> expr-set
   static class Set extends Expr {
     Set(Expr object, Token name, Expr value) {

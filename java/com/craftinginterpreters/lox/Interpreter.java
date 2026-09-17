@@ -268,6 +268,9 @@ class Interpreter implements Expr.Visitor<Object>,
     Object right = evaluate(expr.right); // [left]
 
     switch (expr.operator.type) {
+//> comma-operator
+      case COMMA: return right;
+//< comma-operator
 //> binary-equality
       case BANG_EQUAL: return !isEqual(left, right);
       case EQUAL_EQUAL: return isEqual(left, right);
@@ -400,6 +403,16 @@ class Interpreter implements Expr.Visitor<Object>,
     return evaluate(expr.right);
   }
 //< Control Flow visit-logical
+//> Control Flow visit-ternary
+  @Override
+  public Object visitTernaryExpr(Expr.Ternary expr){
+    if (isTruthy(evaluate(expr.condition))) {
+      return evaluate(expr.thenBranch);
+    }
+
+    return evaluate(expr.elseBranch);
+  }
+//< Control FLow visit-ternary
 //> Classes interpreter-visit-set
   @Override
   public Object visitSetExpr(Expr.Set expr) {
