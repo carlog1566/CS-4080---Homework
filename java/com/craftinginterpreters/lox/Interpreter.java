@@ -21,6 +21,9 @@ class Interpreter implements Expr.Visitor<Object> {
 class Interpreter implements Expr.Visitor<Object>,
                              Stmt.Visitor<Void> {
 //< Statements and State interpreter
+//> Statements and State uninitialized-value
+  private static final Object uninitialized = new Object();
+//< Statements and State uninitialized-value
 /* Statements and State environment-field < Functions global-environment
   private Environment environment = new Environment();
 */
@@ -234,7 +237,7 @@ class Interpreter implements Expr.Visitor<Object>,
 //> Statements and State visit-var
   @Override
   public Void visitVarStmt(Stmt.Var stmt) {
-    Object value = null;
+    Object value = uninitialized;
     if (stmt.initializer != null) {
       value = evaluate(stmt.initializer);
     }
@@ -503,9 +506,15 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Statements and State visit-variable < Resolving and Binding call-look-up-variable
     return environment.get(expr.name);
 */
-//> Resolving and Binding call-look-up-variable
-    return lookUpVariable(expr.name, expr);
-//< Resolving and Binding call-look-up-variable
+//> Statements and State check-uninitialized-variable
+    Object value = lookUpVariable(expr.name, expr);
+
+    if (value == uninitialized) {
+      throw new RuntimeError(expr.name, "Variable must be initialized before use.");
+    }
+
+    return value;
+//< Statements and State check-uninitialized-variable
   }
 //> Resolving and Binding look-up-variable
   private Object lookUpVariable(Token name, Expr expr) {
