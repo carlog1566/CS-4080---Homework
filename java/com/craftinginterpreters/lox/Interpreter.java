@@ -21,6 +21,10 @@ class Interpreter implements Expr.Visitor<Object> {
 class Interpreter implements Expr.Visitor<Object>,
                              Stmt.Visitor<Void> {
 //< Statements and State interpreter
+//> Statements and State break-exception
+  private static class BreakException extends RuntimeException{
+  }
+//< Statements and State break-exception
 //> Statements and State uninitialized-value
   private static final Object uninitialized = new Object();
 //< Statements and State uninitialized-value
@@ -117,6 +121,12 @@ class Interpreter implements Expr.Visitor<Object>,
     }
   }
 //< Statements and State execute-block
+//> Statements and State visit-break
+  @Override 
+  public Void visitBreakStmt(Stmt.Break stmt) {
+    throw new BreakException();
+  }
+//< Statements and State visit-break
 //> Statements and State visit-block
   @Override
   public Void visitBlockStmt(Stmt.Block stmt) {
@@ -249,9 +259,13 @@ class Interpreter implements Expr.Visitor<Object>,
 //> Control Flow visit-while
   @Override
   public Void visitWhileStmt(Stmt.While stmt) {
-    while (isTruthy(evaluate(stmt.condition))) {
-      execute(stmt.body);
+    try {
+      while (isTruthy(evaluate(stmt.condition))) {
+        execute(stmt.body);
+      }
+    } catch (BreakException error) {
     }
+
     return null;
   }
 //< Control Flow visit-while

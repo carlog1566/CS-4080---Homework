@@ -21,6 +21,10 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
   }
 //< Statements and State omit
 //> visit-methods
+  @Override 
+  public String visitBreakStmt(Stmt.Break stmt) {
+    return "break;";
+  }
 //> Statements and State omit
   @Override
   public String visitBlockStmt(Stmt.Block stmt) {

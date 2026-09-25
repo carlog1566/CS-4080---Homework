@@ -56,6 +56,9 @@ public class GenerateAst {
 //> block-ast
       "Block      : List<Stmt> statements",
 //< block-ast
+//> break-ast
+      "Break : ",
+//< break-ast
 /* Classes class-ast < Inheritance superclass-ast
       "Class      : Token name, List<Stmt.Function> methods",
 */
@@ -178,7 +181,14 @@ public class GenerateAst {
     fieldList = fieldList.replace(",\n          ", ", ");
 //< omit
     // Store parameters in fields.
-    String[] fields = fieldList.split(", ");
+    String[] fields;
+
+    if (fieldList.isEmpty()) {
+      fields = new String[0];
+    } else {
+      fields = fieldList.split(", ");
+    }
+    
     for (String field : fields) {
       String name = field.split(" ")[1];
       writer.println("      this." + name + " = " + name + ";");
