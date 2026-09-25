@@ -19,6 +19,9 @@ class Parser {
   private final List<Token> tokens;
   private int current = 0;
 
+  private boolean allowExpression;
+  private boolean foundExpression = false;
+
   Parser(List<Token> tokens) {
     this.tokens = tokens;
   }
@@ -46,6 +49,23 @@ class Parser {
     return statements; // [parse-error-handling]
   }
 //< Statements and State parse
+//> Statements and State parse-repl
+  Object parseRepl() {
+    allowExpression = true;
+    List<Stmt> statements = new ArrayList<>();
+
+    while (!isAtEnd()) {
+      statements.add(declaration());
+
+      if (foundExpression) {
+        Stmt last = statements.get(statements.size() - 1);
+        return ((Stmt.Expression)last).expression;
+      }
+    }
+
+    return statements;
+  }
+//< Statements and State parse-repl
 //> expression
   private Expr expression() {
 /* Parsing Expressions expression < Statements and State expression
@@ -258,7 +278,13 @@ class Parser {
 //> Statements and State parse-expression-statement
   private Stmt expressionStatement() {
     Expr expr = expression();
-    consume(SEMICOLON, "Expect ';' after expression.");
+
+    if (allowExpression && isAtEnd()) {
+      foundExpression = true;
+    } else {
+      consume(SEMICOLON, "Expect ';' after expression.");
+    }
+
     return new Stmt.Expression(expr);
   }
 //< Statements and State parse-expression-statement

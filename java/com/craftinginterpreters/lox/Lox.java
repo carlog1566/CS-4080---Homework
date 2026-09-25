@@ -51,9 +51,36 @@ public class Lox {
 
     for (;;) { // [repl]
       System.out.print("> ");
+
       String line = reader.readLine();
       if (line == null) break;
-      run(line);
+
+      hadError = false;
+      Scanner scanner = new Scanner(line);
+      List<Token> tokens = scanner.scanTokens();
+      Parser parser = new Parser(tokens);
+      
+      Object syntax = parser.parseRepl();
+
+      if (hadError) continue;
+
+      if (syntax instanceof List) {
+        @SuppressWarnings("unchecked")
+        List<Stmt> statements = (List<Stmt>)syntax;
+
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+
+        if (hadError) continue;
+
+        interpreter.interpret(statements);
+      } else if (syntax instanceof Expr) {
+        String result = interpreter.interpret((Expr)syntax);
+
+        if (result != null) {
+          System.out.println("= " + result);
+        }
+      }
 //> reset-had-error
       hadError = false;
 //< reset-had-error
