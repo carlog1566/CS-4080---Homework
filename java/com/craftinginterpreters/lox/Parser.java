@@ -97,7 +97,10 @@ class Parser {
       if (match(CLASS)) return classDeclaration();
 //< Classes match-class
 //> Functions match-fun
-      if (match(FUN)) return function("function");
+      if (check(FUN) && checkNext(IDENTIFIER)) {
+        advance();
+        return function("function");
+      }
 //< Functions match-fun
       if (match(VAR)) return varDeclaration();
 
@@ -313,10 +316,21 @@ class Parser {
 //< Statements and State parse-expression-statement
 //> Functions parse-function
   private Stmt.Function function(String kind) {
-    Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-//> parse-parameters
-    consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+    Token name = consume(IDENTIFIER,
+        "Expect " + kind + " name.");
+
+    Expr.Function function = functionBody(kind);
+
+    return new Stmt.Function(
+        name, function.params, function.body);
+  }
+//< Functions parse-function
+//> Anonymous function-body
+  private Expr.Function functionBody(String kind) {
+    consume(LEFT_PAREN, "Expect '(' after " + kind + ".");
+
     List<Token> parameters = new ArrayList<>();
+
     if (!check(RIGHT_PAREN)) {
       do {
         if (parameters.size() >= 255) {
@@ -327,16 +341,14 @@ class Parser {
             consume(IDENTIFIER, "Expect parameter name."));
       } while (match(COMMA));
     }
-    consume(RIGHT_PAREN, "Expect ')' after parameters.");
-//< parse-parameters
-//> parse-body
 
-    consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+    consume(RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(LEFT_BRACE, "Expect '{' before function body.");
+
     List<Stmt> body = block();
-    return new Stmt.Function(name, parameters, body);
-//< parse-body
+    return new Expr.Function(parameters, body);
   }
-//< Functions parse-function
+//< Anonymous function-body
 //> Statements and State block
   private List<Stmt> block() {
     List<Stmt> statements = new ArrayList<>();
@@ -541,6 +553,12 @@ class Parser {
     if (match(NUMBER, STRING)) {
       return new Expr.Literal(previous().literal);
     }
+
+//> parse-anonymous-function
+    if (match(FUN)) {
+      return functionBody("fun");
+    }
+//< parse-anonymous function
 //> Inheritance parse-super
 
     if (match(SUPER)) {
@@ -626,6 +644,12 @@ class Parser {
     return peek().type == type;
   }
 //< check
+//> check-next
+  private boolean checkNext(TokenType type) {
+    if (current + 1 >= tokens.size()) return false;
+    return tokens.get(current + 1).type == type;
+  }
+//< check-next
 //> advance
   private Token advance() {
     if (!isAtEnd()) current++;

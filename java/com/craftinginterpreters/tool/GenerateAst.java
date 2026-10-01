@@ -22,6 +22,9 @@ public class GenerateAst {
 //> Functions call-expr
       "Call     : Expr callee, Token paren, List<Expr> arguments",
 //< Functions call-expr
+//> Anonymous function-expr
+      "Function : List<Token> params, List<Stmt> body",
+//< Anonymous function-expr
 //> Classes get-ast
       "Get      : Expr object, Token name",
 //< Classes get-ast

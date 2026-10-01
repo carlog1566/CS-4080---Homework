@@ -39,4 +39,9 @@ class RpnPrinter implements Expr.Visitor<String> {
     return expr.right.accept(this) + " " +
            expr.operator.lexeme;
   }
+
+  @Override
+  public String visitFunctionExpr(Expr.Function expr) {
+    return "<fn>";
+  }
 }

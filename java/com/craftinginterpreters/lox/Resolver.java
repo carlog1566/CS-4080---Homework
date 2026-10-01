@@ -138,6 +138,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 //< Classes resolver-visit-class
+//> visit-function-expr
+  @Override 
+  public Void visitFunctionExpr(Expr.Function expr) {
+    resolveFunction(expr.params, expr.body, FunctionType.FUNCTION);
+    return null;
+  }
+//< visit-function-expr
 //> visit-expression-stmt
   @Override
   public Void visitExpressionStmt(Stmt.Expression stmt) {
@@ -357,25 +364,35 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 /* Resolving and Binding resolve-function < Resolving and Binding set-current-function
   private void resolveFunction(Stmt.Function function) {
 */
-//> set-current-function
   private void resolveFunction(
       Stmt.Function function, FunctionType type) {
+
+    resolveFunction(function.params, function.body, type);
+  }
+//< resolve-function
+
+//> resolve-function-expression
+  private void resolveFunction(
+      List<Token> params,
+      List<Stmt> body,
+      FunctionType type) {
+
     FunctionType enclosingFunction = currentFunction;
     currentFunction = type;
 
-//< set-current-function
     beginScope();
-    for (Token param : function.params) {
+
+    for (Token param : params) {
       declare(param);
       define(param);
     }
-    resolve(function.body);
+
+    resolve(body);
     endScope();
-//> restore-current-function
+
     currentFunction = enclosingFunction;
-//< restore-current-function
   }
-//< resolve-function
+//< resolve-function-expression
 //> begin-scope
   private void beginScope() {
     scopes.push(new HashMap<String, Boolean>());
@@ -418,3 +435,4 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   }
 //< resolve-local
 }
+

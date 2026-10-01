@@ -422,6 +422,12 @@ class Interpreter implements Expr.Visitor<Object>,
     return expr.value;
   }
 //< visit-literal
+//> visit-function-expr
+  @Override 
+  public Object visitFunctionExpr(Expr.Function expr) {
+    return new LoxFunction(expr, environment);
+  }
+//< visit-function-expr
 //> Control Flow visit-logical
   @Override
   public Object visitLogicalExpr(Expr.Logical expr) {
