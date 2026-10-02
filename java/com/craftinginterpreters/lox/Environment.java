@@ -3,12 +3,17 @@ package com.craftinginterpreters.lox;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 class Environment {
 //> enclosing-field
   final Environment enclosing;
 //< enclosing-field
   private final Map<String, Object> values = new HashMap<>();
+//> local-slots
+  private final List<Object> slots = new ArrayList<>();
+//< local-slots
 //> environment-constructors
   Environment() {
     enclosing = null;
@@ -77,6 +82,29 @@ class Environment {
     ancestor(distance).values.put(name.lexeme, value);
   }
 //< Resolving and Binding assign-at
+//> indexed-environment-access
+  void defineAt(int index, Object value) {
+    while (slots.size() <= index) {
+      slots.add(null);
+    }
+
+    slots.set(index, value);
+  }
+
+  Object getAt(int distance, int index) {
+    return ancestor(distance).slots.get(index);
+  }
+
+  void assignAt(int distance, int index, Object value) {
+    Environment target = ancestor(distance);
+
+    while (target.slots.size() <= index) {
+      target.slots.add(null);
+    }
+
+    target.slots.set(index, value);
+  }
+//< indexed-environment-access
 //> omit
   @Override
   public String toString() {

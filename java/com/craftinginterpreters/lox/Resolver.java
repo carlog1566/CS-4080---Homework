@@ -15,6 +15,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   private final Stack<Map<String, Token>> unusedVariables =
       new Stack<>();
 //< unused-local-fields
+//> local-slot-scopes
+  private final Stack<Map<String, Integer>> scopeSlots =
+      new Stack<>();
+//< local-slot-scopes
 //> function-type-field
   private FunctionType currentFunction = FunctionType.NONE;
 //< function-type-field
@@ -107,6 +111,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     if (stmt.superclass != null) {
       beginScope();
       scopes.peek().put("super", true);
+      
+      //> super-local-slot
+      scopeSlots.peek().put("super", 0);
+      //< super-local-slot
     }
 //< Inheritance begin-super-scope
 //> resolve-methods
@@ -114,6 +122,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //> resolver-begin-this-scope
     beginScope();
     scopes.peek().put("this", true);
+
+//> this-local-slot
+    scopeSlots.peek().put("this", 0);
+//< this-local-slot
 
 //< resolver-begin-this-scope
     for (Stmt.Function method : stmt.methods) {
@@ -349,7 +361,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       Lox.error(expr.name,
           "Can't read local variable in its own initializer.");
     }
-    
+
     markUsed(expr.name);
     resolveLocal(expr, expr.name);
     return null;
@@ -401,6 +413,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //> begin-scope
   private void beginScope() {
     scopes.push(new HashMap<String, Boolean>());
+    scopeSlots.push(new HashMap<String, Integer>());
 
     //> begin-unused-scope
     unusedVariables.push(new HashMap<String, Token>());
@@ -418,6 +431,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     //< check-unused-locals
 
     scopes.pop();
+    scopeSlots.pop();
   }
 //< end-scope
 //> declare
@@ -430,6 +444,15 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       Lox.error(name,
           "Already a variable with this name in this scope.");
     }
+
+//> assign-local-slot
+    if (!scopeSlots.peek().containsKey(name.lexeme)) {
+      int index = scopeSlots.peek().size();
+
+      scopeSlots.peek().put(name.lexeme, index);
+      interpreter.resolveDeclaration(name, index);
+    }
+//< assign-local-slot
 
 //< duplicate-variable
     scope.put(name.lexeme, false);
@@ -449,7 +472,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   private void resolveLocal(Expr expr, Token name) {
     for (int i = scopes.size() - 1; i >= 0; i--) {
       if (scopes.get(i).containsKey(name.lexeme)) {
-        interpreter.resolve(expr, scopes.size() - 1 - i);
+        int distance = scopes.size() - 1 - i;
+        int index = scopeSlots.get(i).get(name.lexeme);
+
+        interpreter.resolve(expr, distance, index);
         return;
       }
     }

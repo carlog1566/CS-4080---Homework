@@ -35,9 +35,22 @@ class Interpreter implements Expr.Visitor<Object>,
   final Environment globals = new Environment();
   private Environment environment = globals;
 //< Functions global-environment
-//> Resolving and Binding locals-field
-  private final Map<Expr, Integer> locals = new HashMap<>();
-//< Resolving and Binding locals-field
+//> indexed-local
+  private static class Local {
+    final int distance;
+    final int index;
+
+    Local(int distance, int index) {
+      this.distance = distance;
+      this.index = index;
+    }
+  }
+
+  private final Map<Expr, Local> locals = new HashMap<>();
+
+  private final Map<Token, Integer> declarationSlots =
+      new HashMap<>();
+//< indexed-local
 //> Statements and State environment-field
 
 //< Statements and State environment-field
@@ -101,11 +114,40 @@ class Interpreter implements Expr.Visitor<Object>,
     stmt.accept(this);
   }
 //< Statements and State execute
-//> Resolving and Binding resolve
-  void resolve(Expr expr, int depth) {
-    locals.put(expr, depth);
+//> Resolve Indexed Local
+  void resolve(Expr expr, int depth, int index) {
+    locals.put(expr, new Local(depth, index));
   }
-//< Resolving and Binding resolve
+
+  void resolveDeclaration(Token name, int index) {
+    declarationSlots.put(name, index);
+  }
+
+  Integer getDeclarationSlot(Token name) {
+    return declarationSlots.get(name);
+  }
+//< Resolve Indexed Local
+//> indexed-local-definition
+  private void defineVariable(Token name, Object value) {
+    Integer index = declarationSlots.get(name);
+
+    if (index != null) {
+      environment.defineAt(index, value);
+    } else {
+      environment.define(name.lexeme, value);
+    }
+  }
+
+  private void assignDeclaredVariable(Token name, Object value) {
+    Integer index = declarationSlots.get(name);
+
+    if (index != null) {
+      environment.assignAt(0, index, value);
+    } else {
+      environment.assign(name, value);
+    }
+  }
+//< indexed-local-definition
 //> Statements and State execute-block
   void executeBlock(List<Stmt> statements,
                     Environment environment) {
@@ -147,13 +189,15 @@ class Interpreter implements Expr.Visitor<Object>,
       }
     }
 
-//< Inheritance interpret-superclass
-    environment.define(stmt.name.lexeme, null);
-//> Inheritance begin-superclass-environment
+    //> define-class-by-index
+    defineVariable(stmt.name, null);
+    //< define-class-by-index
 
     if (stmt.superclass != null) {
       environment = new Environment(environment);
-      environment.define("super", superclass);
+      //> define-super-by-index
+      environment.defineAt(0, superclass);
+      //< define-super-by-index
     }
 //< Inheritance begin-superclass-environment
 //> interpret-methods
@@ -188,7 +232,9 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Classes interpreter-visit-class < Classes interpret-methods
     LoxClass klass = new LoxClass(stmt.name.lexeme);
 */
-    environment.assign(stmt.name, klass);
+    //> assign-class-by-index
+    assignDeclaredVariable(stmt.name, klass);
+    //< assign-class-by-index
     return null;
   }
 //< Classes interpreter-visit-class
@@ -212,7 +258,9 @@ class Interpreter implements Expr.Visitor<Object>,
     LoxFunction function = new LoxFunction(stmt, environment,
                                            false);
 //< Classes construct-function
-    environment.define(stmt.name.lexeme, function);
+//> define-function-by-index
+    defineVariable(stmt.name, function);
+//< define-function-by-index
     return null;
   }
 //< Functions visit-function
@@ -252,7 +300,9 @@ class Interpreter implements Expr.Visitor<Object>,
       value = evaluate(stmt.initializer);
     }
 
-    environment.define(stmt.name.lexeme, value);
+    //> define-var-by-index
+    defineVariable(stmt.name, value);
+    //< define-var-by-index
     return null;
   }
 //< Statements and State visit-var
@@ -276,16 +326,16 @@ class Interpreter implements Expr.Visitor<Object>,
 /* Statements and State visit-assign < Resolving and Binding resolved-assign
     environment.assign(expr.name, value);
 */
-//> Resolving and Binding resolved-assign
+//> assign-indexed-local
+    Local local = locals.get(expr);
 
-    Integer distance = locals.get(expr);
-    if (distance != null) {
-      environment.assignAt(distance, expr.name, value);
+    if (local != null) {
+      environment.assignAt(
+          local.distance, local.index, value);
     } else {
       globals.assign(expr.name, value);
     }
-
-//< Resolving and Binding resolved-assign
+//< assign-indexed-local
     return value;
   }
 //< Statements and State visit-assign
@@ -470,14 +520,17 @@ class Interpreter implements Expr.Visitor<Object>,
 //> Inheritance interpreter-visit-super
   @Override
   public Object visitSuperExpr(Expr.Super expr) {
-    int distance = locals.get(expr);
-    LoxClass superclass = (LoxClass)environment.getAt(
-        distance, "super");
-//> super-find-this
+    //> indexed-super
+    Local local = locals.get(expr);
 
-    LoxInstance object = (LoxInstance)environment.getAt(
-        distance - 1, "this");
-//< super-find-this
+    LoxClass superclass =
+        (LoxClass)environment.getAt(
+            local.distance, local.index);
+
+    LoxInstance object =
+        (LoxInstance)environment.getAt(
+            local.distance - 1, 0);
+    //< indexed-super
 //> super-find-method
 
     LoxFunction method = superclass.findMethod(expr.method.lexeme);
@@ -538,12 +591,14 @@ class Interpreter implements Expr.Visitor<Object>,
   }
 //> Resolving and Binding look-up-variable
   private Object lookUpVariable(Token name, Expr expr) {
-    Integer distance = locals.get(expr);
-    if (distance != null) {
-      return environment.getAt(distance, name.lexeme);
-    } else {
-      return globals.get(name);
+    Local local = locals.get(expr);
+
+    if (local != null) {
+      return environment.getAt(
+          local.distance, local.index);
     }
+
+    return globals.get(name);
   }
 //< Resolving and Binding look-up-variable
 //< Statements and State visit-variable
