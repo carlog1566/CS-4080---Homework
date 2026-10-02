@@ -11,6 +11,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //> scopes-field
   private final Stack<Map<String, Boolean>> scopes = new Stack<>();
 //< scopes-field
+//> unused-local-fields
+  private final Stack<Map<String, Token>> unusedVariables =
+      new Stack<>();
+//< unused-local-fields
 //> function-type-field
   private FunctionType currentFunction = FunctionType.NONE;
 //< function-type-field
@@ -345,7 +349,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       Lox.error(expr.name,
           "Can't read local variable in its own initializer.");
     }
-
+    
+    markUsed(expr.name);
     resolveLocal(expr, expr.name);
     return null;
   }
@@ -396,10 +401,22 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //> begin-scope
   private void beginScope() {
     scopes.push(new HashMap<String, Boolean>());
+
+    //> begin-unused-scope
+    unusedVariables.push(new HashMap<String, Token>());
+    //< begin-unused-scope
   }
 //< begin-scope
 //> end-scope
   private void endScope() {
+    //> check-unused-locals
+    for (Token variable : unusedVariables.peek().values()) {
+      Lox.error(variable, "Local variable is never used.");
+    }
+
+    unusedVariables.pop();
+    //< check-unused-locals
+
     scopes.pop();
   }
 //< end-scope
@@ -416,6 +433,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
 //< duplicate-variable
     scope.put(name.lexeme, false);
+
+    //> track-unused-local
+    unusedVariables.peek().put(name.lexeme, name);
+    //< track-unused-local
   }
 //< declare
 //> define
@@ -434,5 +455,15 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
   }
 //< resolve-local
+//> mark-local-used
+  private void markUsed(Token name) {
+    for (int i = scopes.size() - 1; i >= 0; i--) {
+      if (scopes.get(i).containsKey(name.lexeme)) {
+        unusedVariables.get(i).remove(name.lexeme);
+        return;
+      }
+    }
+  }
+//< mark-local-used
 }
 
