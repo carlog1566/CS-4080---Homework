@@ -324,13 +324,33 @@ class Parser {
 //< Statements and State parse-expression-statement
 //> Functions parse-function
   private Stmt.Function function(String kind) {
-    Token name = consume(IDENTIFIER,
+    Token name = consume(
+        IDENTIFIER,
         "Expect " + kind + " name.");
+
+    //> getter-parser
+    if (kind.equals("method") &&
+        !check(LEFT_PAREN)) {
+
+      consume(
+          LEFT_BRACE,
+          "Expect '{' before method body.");
+
+      List<Stmt> body = block();
+
+      return new Stmt.Function(
+          name,
+          null,
+          body);
+    }
+    //< getter-parser
 
     Expr.Function function = functionBody(kind);
 
     return new Stmt.Function(
-        name, function.params, function.body);
+        name,
+        function.params,
+        function.body);
   }
 //< Functions parse-function
 //> Anonymous function-body

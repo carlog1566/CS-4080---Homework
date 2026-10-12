@@ -65,13 +65,16 @@ class LoxFunction implements LoxCallable {
 //> function-arity
   @Override
   public int arity() {
-    if (expressionDeclaration != null) {
-      return expressionDeclaration.params.size();
-    }
+    if (declaration.params == null) return 0;
 
     return declaration.params.size();
   }
 //< function-arity
+//> is-getter
+  boolean isGetter() {
+    return declaration.params == null;
+  }
+//< is-getter
 //> function-call
   @Override
   public Object call(Interpreter interpreter,
@@ -94,13 +97,15 @@ class LoxFunction implements LoxCallable {
 //< call-closure
 
 //> indexed-parameters
-    for (int i = 0; i < params.size(); i++) {
-      Token parameter = params.get(i);
+    if (params != null) {
+      for (int i = 0; i < params.size(); i++) {
+        Token parameter = params.get(i);
 
-      Integer index =
-          interpreter.getDeclarationSlot(parameter);
+        Integer index =
+            interpreter.getDeclarationSlot(parameter);
 
-      environment.defineAt(index, arguments.get(i));
+        environment.defineAt(index, arguments.get(i));
+      }
     }
 //< indexed-parameters
 

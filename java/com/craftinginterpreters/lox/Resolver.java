@@ -412,9 +412,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     beginScope();
 
-    for (Token param : params) {
-      declare(param);
-      define(param);
+    if (params != null) {
+      for (Token param : params) {
+        declare(param);
+        define(param);
+      }
     }
 
     resolve(body);
