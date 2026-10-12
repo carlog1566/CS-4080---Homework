@@ -8,7 +8,7 @@ import java.util.Map;
 class LoxClass {
 */
 //> lox-class-callable
-class LoxClass implements LoxCallable {
+class LoxClass extends LoxInstance implements LoxCallable {
 //< lox-class-callable
   final String name;
 //> Inheritance lox-class-superclass-field
@@ -26,14 +26,16 @@ class LoxClass implements LoxCallable {
 /* Classes lox-class-methods < Inheritance lox-class-constructor
   LoxClass(String name, Map<String, LoxFunction> methods) {
 */
-//> Inheritance lox-class-constructor
-  LoxClass(String name, LoxClass superclass,
-           Map<String, LoxFunction> methods) {
-    this.superclass = superclass;
-//< Inheritance lox-class-constructor
+//> metaclass-constructor
+  LoxClass(LoxClass metaclass, String name,
+          LoxClass superclass, Map<String, LoxFunction> methods) {
+    super(metaclass);
+
     this.name = name;
+    this.superclass = superclass;
     this.methods = methods;
   }
+//< metaclass-constructor
 //< lox-class-methods
 //> lox-class-find-method
   LoxFunction findMethod(String name) {

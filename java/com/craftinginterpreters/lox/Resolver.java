@@ -142,6 +142,19 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 //> resolver-end-this-scope
     endScope();
 
+//> resolve-static-methods
+    for (Stmt.Function method : stmt.classMethods) {
+      beginScope();
+
+      scopes.peek().put("this", true);
+      scopeSlots.peek().put("this", 0);
+
+      resolveFunction(method, FunctionType.METHOD);
+
+      endScope();
+    }
+//< resolve-static-methods
+
 //< resolver-end-this-scope
 //< resolve-methods
 //> Inheritance end-super-scope
