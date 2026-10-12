@@ -127,6 +127,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     scopeSlots.peek().put("this", 0);
 //< this-local-slot
 
+//> beta-inner-scope
+    scopes.peek().put("inner", true);
+    scopeSlots.peek().put("inner", 1);
+//< beta-inner-scope
+
 //< resolver-begin-this-scope
     for (Stmt.Function method : stmt.methods) {
       FunctionType declaration = FunctionType.METHOD;

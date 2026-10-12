@@ -3,6 +3,7 @@ package com.craftinginterpreters.lox;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 /* Classes lox-class < Classes lox-class-callable
 class LoxClass {
@@ -39,19 +40,58 @@ class LoxClass extends LoxInstance implements LoxCallable {
 //< lox-class-methods
 //> lox-class-find-method
   LoxFunction findMethod(String name) {
-    if (methods.containsKey(name)) {
-      return methods.get(name);
-    }
-
-//> Inheritance find-method-recurse-superclass
     if (superclass != null) {
-      return superclass.findMethod(name);
+      LoxFunction method =
+          superclass.findMethod(name);
+
+      if (method != null) {
+        return method;
+      }
     }
 
-//< Inheritance find-method-recurse-superclass
-    return null;
+    return methods.get(name);
   }
 //< lox-class-find-method
+//> beta-method-chain
+  private void collectMethods(
+      String name,
+      List<LoxFunction> chain) {
+
+    if (superclass != null) {
+      superclass.collectMethods(name, chain);
+    }
+
+    if (methods.containsKey(name)) {
+      chain.add(methods.get(name));
+    }
+  }
+
+  LoxFunction findMethod(
+      LoxInstance instance,
+      String name) {
+
+    List<LoxFunction> chain =
+        new ArrayList<>();
+
+    collectMethods(name, chain);
+
+    if (chain.isEmpty()) {
+      return null;
+    }
+
+    LoxFunction inner = null;
+
+    for (int i = chain.size() - 1;
+        i >= 0;
+        i--) {
+
+      inner = chain.get(i).bind(
+          instance, inner);
+    }
+
+    return inner;
+  }
+//< beta-method-chain
 
   @Override
   public String toString() {
@@ -63,9 +103,9 @@ class LoxClass extends LoxInstance implements LoxCallable {
                      List<Object> arguments) {
     LoxInstance instance = new LoxInstance(this);
 //> lox-class-call-initializer
-    LoxFunction initializer = findMethod("init");
+    LoxFunction initializer = findMethod(instance,"init");
     if (initializer != null) {
-      initializer.bind(instance).call(interpreter, arguments);
+      initializer.call(interpreter, arguments);
     }
 
 //< lox-class-call-initializer

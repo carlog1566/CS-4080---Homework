@@ -19,6 +19,28 @@ class LoxFunction implements LoxCallable {
 //> Classes is-initializer-field
   private final boolean isInitializer;
 
+//> no-inner-function
+  private static final LoxCallable NO_INNER =
+      new LoxCallable() {
+        @Override
+        public int arity() {
+          return 0;
+        }
+
+        @Override
+        public Object call(
+            Interpreter interpreter,
+            List<Object> arguments) {
+          return null;
+        }
+
+        @Override
+        public String toString() {
+          return "<inner>";
+        }
+      };
+//< no-inner-function
+
   LoxFunction(Stmt.Function declaration, Environment closure,
               boolean isInitializer) {
     this.isInitializer = isInitializer;
@@ -37,21 +59,42 @@ class LoxFunction implements LoxCallable {
     this.isInitializer = false;
   }
 //< anonymous-function-constructor
-//> Classes bind-instance
+//> beta-bind
   LoxFunction bind(LoxInstance instance) {
-    Environment environment = new Environment(closure);
-    //> indexed-this
-    environment.defineAt(0, instance);
-    //< indexed-this
-/* Classes bind-instance < Classes lox-function-bind-with-initializer
-    return new LoxFunction(declaration, environment);
-*/
-//> lox-function-bind-with-initializer
-    return new LoxFunction(declaration, environment,
-                           isInitializer);
-//< lox-function-bind-with-initializer
+    return bind(instance, null);
   }
-//< Classes bind-instance
+
+  LoxFunction bind(
+      LoxInstance instance,
+      LoxFunction inner) {
+
+    Environment environment =
+        new Environment(closure);
+
+    // "this"
+    environment.defineAt(0, instance);
+
+    // "inner"
+    if (inner != null) {
+      environment.defineAt(1, inner);
+    } else {
+      environment.defineAt(1, NO_INNER);
+    }
+
+    // Normal named method.
+    if (declaration != null) {
+      return new LoxFunction(
+          declaration,
+          environment,
+          isInitializer);
+    }
+
+    // Keeps anonymous functions compatible too.
+    return new LoxFunction(
+        expressionDeclaration,
+        environment);
+  }
+//< beta-bind
 //> function-to-string
   @Override
   public String toString() {
