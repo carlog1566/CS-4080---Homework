@@ -102,6 +102,14 @@ typedef enum {
 //< Methods and Initializers method-op
 } OpCode;
 //< op-enum
+//> compressed-line-start
+
+typedef struct {
+  int offset;
+  int line;
+} LineStart;
+
+//< compressed-line-start
 //> chunk-struct
 
 typedef struct {
@@ -110,9 +118,11 @@ typedef struct {
   int capacity;
 //< count-and-capacity
   uint8_t* code;
-//> chunk-lines
-  int* lines;
-//< chunk-lines
+//> compressed-lines
+  int lineCount;
+  int lineCapacity;
+  LineStart* lines;
+//< compressed-lines
 //> chunk-constants
   ValueArray constants;
 //< chunk-constants
@@ -131,6 +141,9 @@ void writeChunk(Chunk* chunk, uint8_t byte);
 //> write-chunk-with-line-h
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 //< write-chunk-with-line-h
+//> get-line-h
+int getLine(Chunk* chunk, int instruction);
+//< get-line-h
 //> add-constant-h
 int addConstant(Chunk* chunk, Value value);
 //< add-constant-h
