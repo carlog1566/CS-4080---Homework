@@ -50,10 +50,11 @@ typedef struct {
   int frameCount;
   
 //< Calls and Functions frame-array
-//> vm-stack
-  Value stack[STACK_MAX];
+//> dynamic-stack
+  Value* stack;
+  int stackCapacity;
   Value* stackTop;
-//< vm-stack
+//< dynamic-stack
 //> Global Variables vm-globals
   Table globals;
 //< Global Variables vm-globals

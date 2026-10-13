@@ -1,4 +1,5 @@
 //> A Virtual Machine vm-c
+#include <stdlib.h>
 //> Types of Values include-stdarg
 #include <stdarg.h>
 //< Types of Values include-stdarg
@@ -98,6 +99,10 @@ static void defineNative(const char* name, NativeFn function) {
 //< Calls and Functions define-native
 
 void initVM() {
+//> init-dynamic-stack
+  vm.stack = NULL;
+  vm.stackCapacity = 0;
+//< init-dynamic-stack
 //> call-reset-stack
   resetStack();
 //< call-reset-stack
@@ -147,13 +152,98 @@ void freeVM() {
 //> Strings call-free-objects
   freeObjects();
 //< Strings call-free-objects
+//> free-dynamic-stack
+  free(vm.stack);
+  vm.stack = NULL;
+  vm.stackTop = NULL;
+  vm.stackCapacity = 0;
+//< free-dynamic-stack
 }
-//> push
+//> grow-vm-stack
+static void growStack() {
+  int count = 0;
+
+  if (vm.stack != NULL) {
+    count =
+        (int)(vm.stackTop - vm.stack);
+  }
+
+  int oldCapacity =
+      vm.stackCapacity;
+
+  int newCapacity =
+      GROW_CAPACITY(oldCapacity);
+
+  uintptr_t oldBase =
+      (uintptr_t)vm.stack;
+
+  Value* newStack =
+      (Value*)realloc(
+          vm.stack,
+          sizeof(Value) * newCapacity);
+
+  if (newStack == NULL) {
+    exit(1);
+  }
+
+  vm.stack = newStack;
+  vm.stackCapacity = newCapacity;
+  vm.stackTop = vm.stack + count;
+
+  // realloc() may move the stack.
+  if (oldBase != 0 &&
+      (uintptr_t)newStack != oldBase) {
+
+    for (int i = 0;
+         i < vm.frameCount;
+         i++) {
+
+      uintptr_t oldSlot =
+          (uintptr_t)vm.frames[i].slots;
+
+      size_t byteOffset =
+          oldSlot - oldBase;
+
+      vm.frames[i].slots =
+          (Value*)((uint8_t*)vm.stack +
+                  byteOffset);
+    }
+
+    for (ObjUpvalue* upvalue =
+             vm.openUpvalues;
+         upvalue != NULL;
+         upvalue = upvalue->next) {
+
+      uintptr_t oldLocation =
+          (uintptr_t)upvalue->location;
+
+      size_t byteOffset =
+          oldLocation - oldBase;
+
+      upvalue->location =
+          (Value*)((uint8_t*)vm.stack +
+                  byteOffset);
+    }
+  }
+}
+//< grow-vm-stack
+//> dynamic-push
 void push(Value value) {
+  int count = 0;
+
+  if (vm.stack != NULL) {
+    count =
+        (int)(vm.stackTop - vm.stack);
+  }
+
+  if (count >= vm.stackCapacity) {
+    growStack();
+  }
+
   *vm.stackTop = value;
   vm.stackTop++;
 }
-//< push
+//< dynamic-push
 //> pop
 Value pop() {
   vm.stackTop--;
