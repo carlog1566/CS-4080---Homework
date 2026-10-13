@@ -422,6 +422,18 @@ static InterpretResult run() {
 #define READ_CONSTANT() \
     (frame->closure->function->chunk.constants.values[READ_BYTE()])
 //< Closures read-constant
+//> read-long
+#define READ_LONG() \
+  (frame->ip += 3, \
+  (uint32_t)( \
+      frame->ip[-3] | \
+      (frame->ip[-2] << 8) | \
+      (frame->ip[-1] << 16)))
+
+#define READ_CONSTANT_LONG() \
+  (frame->closure->function->chunk \
+      .constants.values[READ_LONG()])
+//< read-long
 
 //< Calls and Functions run
 //> Global Variables read-string
@@ -490,6 +502,15 @@ static InterpretResult run() {
         break;
       }
 //< op-constant
+//> op-constant-long
+      case OP_CONSTANT_LONG: {
+        Value constant =
+            READ_CONSTANT_LONG();
+
+        push(constant);
+        break;
+      }
+//< op-constant-long
 //> Types of Values interpret-literals
       case OP_NIL: push(NIL_VAL); break;
       case OP_TRUE: push(BOOL_VAL(true)); break;
@@ -862,6 +883,8 @@ static InterpretResult run() {
 //> undef-binary-op
 #undef BINARY_OP
 //< undef-binary-op
+#undef READ_LONG
+#undef READ_CONSTANT_LONG
 }
 //< run
 //> omit
