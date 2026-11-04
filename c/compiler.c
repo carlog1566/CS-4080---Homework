@@ -112,6 +112,9 @@ typedef struct Compiler {
   Upvalue upvalues[UINT8_COUNT];
 //< Closures upvalues-array
   int scopeDepth;
+//> identifier-constants-table
+  Table identifierConstants;
+//< identifier-constants-table
 } Compiler;
 //< Local Variables compiler-struct
 //> Methods and Initializers class-compiler-struct
@@ -307,6 +310,9 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 //< Calls and Functions init-compiler
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+//> init-identifier-constants
+  initTable(&compiler->identifierConstants);
+//< init-identifier-constants
 //> Calls and Functions init-function
   compiler->function = newFunction();
 //< Calls and Functions init-function
@@ -367,6 +373,10 @@ static ObjFunction* endCompiler() {
 //< dump-chunk
 //> Calls and Functions return-function
 
+//> free-identifier-constants
+freeTable(&current->identifierConstants);
+//< free-identifier-constants
+
 //> restore-enclosing
   current = current->enclosing;
 //< restore-enclosing
@@ -413,12 +423,36 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
 //< Compiling Expressions forward-declarations
-//> Global Variables identifier-constant
+//> deduplicate-identifier-constants
 static uint8_t identifierConstant(Token* name) {
-  return makeConstant(OBJ_VAL(copyString(name->start,
-                                         name->length)));
+  ObjString* identifier =
+      copyString(
+          name->start,
+          name->length);
+
+  Value indexValue;
+
+  if (tableGet(
+          &current->identifierConstants,
+          OBJ_VAL(identifier),
+          &indexValue)) {
+
+    return (uint8_t)
+        AS_NUMBER(indexValue);
+  }
+
+  uint8_t index =
+      makeConstant(
+          OBJ_VAL(identifier));
+
+  tableSet(
+      &current->identifierConstants,
+      OBJ_VAL(identifier),
+      NUMBER_VAL(index));
+
+  return index;
 }
-//< Global Variables identifier-constant
+//< deduplicate-identifier-constants
 //> Local Variables identifiers-equal
 static bool identifiersEqual(Token* a, Token* b) {
   if (a->length != b->length) return false;
@@ -1522,8 +1556,16 @@ ObjFunction* compile(const char* source) {
 //> Garbage Collection mark-compiler-roots
 void markCompilerRoots() {
   Compiler* compiler = current;
+
   while (compiler != NULL) {
-    markObject((Obj*)compiler->function);
+    markObject(
+        (Obj*)compiler->function);
+
+//> mark-identifier-constants
+    markTable(
+        &compiler->identifierConstants);
+//< mark-identifier-constants
+
     compiler = compiler->enclosing;
   }
 }
