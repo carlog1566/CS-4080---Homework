@@ -1,0 +1,17 @@
+class Box {}
+
+fun run() {
+  var box = Box();
+  box.value = 0;
+
+  var i = 0;
+
+  while (i < 2000000) {
+    box.value = box.value + 1;
+    i = i + 1;
+  }
+
+  print box.value;
+}
+
+run();
