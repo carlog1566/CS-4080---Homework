@@ -215,12 +215,19 @@ static void freeObject(Obj* object) {
       FREE(ObjNative, object);
       break;
 //< Calls and Functions free-native
+//> free-flexible-string
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
-      FREE_ARRAY(char, string->chars, string->length + 1);
-      FREE(ObjString, object);
+
+      reallocate(
+          object,
+          sizeof(ObjString) +
+              sizeof(char) * (string->length + 1),
+          0);
+
       break;
     }
+//< free-flexible-string
 //> Closures free-upvalue
     case OBJ_UPVALUE:
       FREE(ObjUpvalue, object);
