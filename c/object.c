@@ -123,7 +123,12 @@ static ObjString* allocateString(
   push(OBJ_VAL(string));
 //< Garbage Collection push-string
 
-  tableSet(&vm.strings, string, NIL_VAL);
+//> string-table-value-key
+  tableSet(
+      &vm.strings,
+      OBJ_VAL(string),
+      NIL_VAL);
+//< string-table-value-key
 
 //> Garbage Collection pop-string
   pop();

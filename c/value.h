@@ -29,6 +29,7 @@ typedef struct ObjString ObjString;
 #define TAG_NIL   1 // 01.
 #define TAG_FALSE 2 // 10.
 #define TAG_TRUE  3 // 11.
+#define TAG_EMPTY 4
 //< tags
 
 typedef uint64_t Value;
@@ -46,6 +47,10 @@ typedef uint64_t Value;
 #define IS_OBJ(value) \
     (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 //< is-obj
+//> is-empty
+#define IS_EMPTY(value) \
+    ((value) == EMPTY_VAL)
+//< is-empty
 //> as-number
 
 //> as-bool
@@ -69,6 +74,10 @@ typedef uint64_t Value;
 //> nil-val
 #define NIL_VAL         ((Value)(uint64_t)(QNAN | TAG_NIL))
 //< nil-val
+//> empty-val
+#define EMPTY_VAL \
+    ((Value)(uint64_t)(QNAN | TAG_EMPTY))
+//< empty-val
 #define NUMBER_VAL(num) numToValue(num)
 //< number-val
 //> obj-val
@@ -98,11 +107,12 @@ static inline Value numToValue(double num) {
 //> Types of Values value-type
 typedef enum {
   VAL_BOOL,
-  VAL_NIL, // [user-types]
+  VAL_NIL,
   VAL_NUMBER,
-//> Strings val-obj
-  VAL_OBJ
-//< Strings val-obj
+  VAL_OBJ,
+//> val-empty
+  VAL_EMPTY
+//< val-empty
 } ValueType;
 
 //< Types of Values value-type
@@ -129,6 +139,7 @@ typedef struct {
 //> Strings is-obj
 #define IS_OBJ(value)     ((value).type == VAL_OBJ)
 //< Strings is-obj
+#define IS_EMPTY(value)   ((value).type == VAL_EMPTY)
 //< Types of Values is-macros
 //> Types of Values as-macros
 
@@ -142,6 +153,7 @@ typedef struct {
 
 #define BOOL_VAL(value)   ((Value){VAL_BOOL, {.boolean = value}})
 #define NIL_VAL           ((Value){VAL_NIL, {.number = 0}})
+#define EMPTY_VAL         ((Value){VAL_EMPTY, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 //> Strings obj-val
 #define OBJ_VAL(object)   ((Value){VAL_OBJ, {.obj = (Obj*)object}})
@@ -164,6 +176,9 @@ typedef struct {
 //> Types of Values values-equal-h
 bool valuesEqual(Value a, Value b);
 //< Types of Values values-equal-h
+//> hash-value-h
+uint32_t hashValue(Value value);
+//< hash-value-h
 void initValueArray(ValueArray* array);
 void writeValueArray(ValueArray* array, Value value);
 void freeValueArray(ValueArray* array);

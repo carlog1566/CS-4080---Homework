@@ -44,6 +44,8 @@ void printValue(Value value) {
     printf("nil");
   } else if (IS_NUMBER(value)) {
     printf("%g", AS_NUMBER(value));
+  } else if (IS_EMPTY(value)) {
+    printf("<empty>");
   } else if (IS_OBJ(value)) {
     printObject(value);
   }
@@ -61,6 +63,7 @@ void printValue(Value value) {
       printf(AS_BOOL(value) ? "true" : "false");
       break;
     case VAL_NIL: printf("nil"); break;
+    case VAL_EMPTY: printf("<empty>"); break;
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
 //> Strings call-print-object
     case VAL_OBJ: printObject(value); break;
@@ -88,6 +91,7 @@ bool valuesEqual(Value a, Value b) {
   switch (a.type) {
     case VAL_BOOL:   return AS_BOOL(a) == AS_BOOL(b);
     case VAL_NIL:    return true;
+    case VAL_EMPTY:  return true;
     case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
 /* Strings strings-equal < Hash Tables equal
     case VAL_OBJ: {
@@ -108,3 +112,47 @@ bool valuesEqual(Value a, Value b) {
 //< Optimization end-values-equal
 }
 //< Types of Values values-equal
+//> hash-double
+static uint32_t hashDouble(double value) {
+  union BitCast {
+    double value;
+    uint32_t ints[2];
+  };
+
+  union BitCast cast;
+  cast.value = value + 1.0;
+
+  return cast.ints[0] + cast.ints[1];
+}
+//< hash-double
+
+//> hash-value
+uint32_t hashValue(Value value) {
+  if (IS_BOOL(value)) {
+    return AS_BOOL(value) ? 3 : 5;
+  }
+
+  if (IS_NIL(value)) {
+    return 7;
+  }
+
+  if (IS_NUMBER(value)) {
+    return hashDouble(AS_NUMBER(value));
+  }
+
+  if (IS_EMPTY(value)) {
+    return 0;
+  }
+
+  if (IS_STRING(value)) {
+    return AS_STRING(value)->hash;
+  }
+
+  // Other object types use identity for now.
+  uint64_t pointer =
+      (uint64_t)(uintptr_t)AS_OBJ(value);
+
+  return (uint32_t)(
+      pointer ^ (pointer >> 32));
+}
+//< hash-value
