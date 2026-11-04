@@ -104,35 +104,44 @@ ObjNative* newNative(NativeFn function) {
 }
 //< Calls and Functions new-native
 
-//> flexible-array-allocate-string
-static ObjString* allocateString(int length, uint32_t hash) {
-  ObjString* string = (ObjString*)allocateObject(
-      sizeof(ObjString) + sizeof(char) * (length + 1),
-      OBJ_STRING);
+//> owned-allocate-string
+static ObjString* allocateString(
+    const char* chars,
+    int length,
+    uint32_t hash,
+    bool ownsChars) {
 
+  ObjString* string =
+      ALLOCATE_OBJ(ObjString, OBJ_STRING);
+
+  string->ownsChars = ownsChars;
   string->length = length;
+  string->chars = chars;
   string->hash = hash;
-  return string;
-}
-//< flexible-array-allocate-string
 
-//> register-string
-static ObjString* registerString(ObjString* string) {
+//> Garbage Collection push-string
   push(OBJ_VAL(string));
+//< Garbage Collection push-string
+
   tableSet(&vm.strings, string, NIL_VAL);
+
+//> Garbage Collection pop-string
   pop();
+//< Garbage Collection pop-string
 
   return string;
 }
-//< register-string
+//< owned-allocate-string
 
 //> Hash Tables hash-string
 static uint32_t hashString(const char* key, int length) {
   uint32_t hash = 2166136261u;
+
   for (int i = 0; i < length; i++) {
     hash ^= (uint8_t)key[i];
     hash *= 16777619;
   }
+
   return hash;
 }
 //< Hash Tables hash-string
@@ -142,21 +151,21 @@ ObjString* takeString(char* chars, int length) {
   uint32_t hash = hashString(chars, length);
 
   ObjString* interned =
-      tableFindString(&vm.strings, chars, length, hash);
+      tableFindString(&vm.strings,
+                      chars,
+                      length,
+                      hash);
 
   if (interned != NULL) {
     FREE_ARRAY(char, chars, length + 1);
     return interned;
   }
 
-  ObjString* string = allocateString(length, hash);
-
-  memcpy(string->chars, chars, length);
-  string->chars[length] = '\0';
-
-  FREE_ARRAY(char, chars, length + 1);
-
-  return registerString(string);
+  return allocateString(
+      chars,
+      length,
+      hash,
+      true);
 }
 //< take-string
 
@@ -165,55 +174,49 @@ ObjString* copyString(const char* chars, int length) {
   uint32_t hash = hashString(chars, length);
 
   ObjString* interned =
-      tableFindString(&vm.strings, chars, length, hash);
+      tableFindString(&vm.strings,
+                      chars,
+                      length,
+                      hash);
 
   if (interned != NULL) return interned;
 
-  ObjString* string = allocateString(length, hash);
+  char* heapChars =
+      ALLOCATE(char, length + 1);
 
-  memcpy(string->chars, chars, length);
-  string->chars[length] = '\0';
+  memcpy(heapChars, chars, length);
+  heapChars[length] = '\0';
 
-  return registerString(string);
+  return allocateString(
+      heapChars,
+      length,
+      hash,
+      true);
 }
 //< copy-string
 
-//> concatenate-strings
-ObjString* concatenateStrings(ObjString* a, ObjString* b) {
-  int length = a->length + b->length;
+//> constant-string
+ObjString* constantString(
+    const char* chars,
+    int length) {
 
-  ObjString* string = allocateString(length, 0);
-
-  memcpy(string->chars, a->chars, a->length);
-  memcpy(string->chars + a->length,
-         b->chars, b->length);
-
-  string->chars[length] = '\0';
-  string->hash = hashString(string->chars, length);
+  uint32_t hash = hashString(chars, length);
 
   ObjString* interned =
       tableFindString(&vm.strings,
-                      string->chars,
-                      string->length,
-                      string->hash);
+                      chars,
+                      length,
+                      hash);
 
-  if (interned != NULL) {
-    // No other object allocation occurs between
-    // allocateString() and this point, so this
-    // string is still at the head of the object list.
-    vm.objects = string->obj.next;
+  if (interned != NULL) return interned;
 
-    reallocate(
-        string,
-        sizeof(ObjString) + sizeof(char) * (length + 1),
-        0);
-
-    return interned;
-  }
-
-  return registerString(string);
+  return allocateString(
+      chars,
+      length,
+      hash,
+      false);
 }
-//< concatenate-strings
+//< constant-string
 //> Closures new-upvalue
 ObjUpvalue* newUpvalue(Value* slot) {
   ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
@@ -272,9 +275,13 @@ void printObject(Value value) {
       printf("<native fn>");
       break;
 //< Calls and Functions print-native
+//> print-non-owning-string
     case OBJ_STRING:
-      printf("%s", AS_CSTRING(value));
+      printf("%.*s",
+            AS_STRING(value)->length,
+            AS_CSTRING(value));
       break;
+//< print-non-owning-string
 //> Closures print-upvalue
     case OBJ_UPVALUE:
       printf("upvalue");

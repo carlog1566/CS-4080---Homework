@@ -707,11 +707,14 @@ static void or_(bool canAssign) {
 static void string() {
 */
 //> Strings parse-string
-//> Global Variables string
 static void string(bool canAssign) {
-//< Global Variables string
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
-                                  parser.previous.length - 2)));
+//> compile-constant-string
+  emitConstant(
+      OBJ_VAL(
+          constantString(
+              parser.previous.start + 1,
+              parser.previous.length - 2)));
+//< compile-constant-string
 }
 //< Strings parse-string
 /* Global Variables read-named-variable < Global Variables named-variable-signature
