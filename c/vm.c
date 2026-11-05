@@ -608,6 +608,9 @@ static InterpretResult run() {
 //> Global Variables interpret-pop
       case OP_POP: pop(); break;
 //< Global Variables interpret-pop
+//> interpret-dup
+      case OP_DUP: push(peek(0)); break;
+//< interpret-dup
 //> Local Variables interpret-get-local
       case OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE();

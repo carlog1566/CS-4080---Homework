@@ -23,6 +23,9 @@ OP_CONSTANT_LONG,
 //> Global Variables pop-op
   OP_POP,
 //< Global Variables pop-op
+//> switch-dup-op
+  OP_DUP,
+//< switch-dup-op
 //> Local Variables get-local-op
   OP_GET_LOCAL,
 //< Local Variables get-local-op

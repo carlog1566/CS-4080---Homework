@@ -33,6 +33,10 @@ typedef struct {
 } Parser;
 //> precedence
 
+//> switch-max-cases
+#define MAX_CASES 256
+//< switch-max-cases
+
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
@@ -1088,6 +1092,10 @@ ParseRule rules[] = {
 //> Classes and Instances table-dot
   [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
 //< Classes and Instances table-dot
+  [TOKEN_COLON]         = {NULL, NULL, PREC_NONE},
+  [TOKEN_CASE]          = {NULL, NULL, PREC_NONE},
+  [TOKEN_DEFAULT]       = {NULL, NULL, PREC_NONE},
+  [TOKEN_SWITCH]        = {NULL, NULL, PREC_NONE},
   [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
   [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
   [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
@@ -1593,6 +1601,131 @@ static void returnStatement() {
   }
 }
 //< Calls and Functions return-statement
+//> switch-statement
+static void switchStatement() {
+  consume(
+      TOKEN_LEFT_PAREN,
+      "Expect '(' after 'switch'.");
+
+  // Track the switch value as a hidden local so
+  // nested control flow can clean it up correctly.
+  beginScope();
+
+  expression();
+
+//> switch-hidden-local
+  addLocal(
+      syntheticToken(""),
+      false);
+
+  markInitialized();
+//< switch-hidden-local
+
+  consume(
+      TOKEN_RIGHT_PAREN,
+      "Expect ')' after value.");
+
+  consume(
+      TOKEN_LEFT_BRACE,
+      "Expect '{' before switch cases.");
+
+  // 0 = before cases.
+  // 1 = inside cases.
+  // 2 = after default.
+  int state = 0;
+
+  int caseEnds[MAX_CASES];
+  int caseCount = 0;
+
+  int previousCaseSkip = -1;
+
+  while (!match(TOKEN_RIGHT_BRACE) &&
+         !check(TOKEN_EOF)) {
+
+    if (match(TOKEN_CASE) ||
+        match(TOKEN_DEFAULT)) {
+
+      TokenType caseType =
+          parser.previous.type;
+
+      if (state == 2) {
+        error(
+            "Can't have another case or default after the default case.");
+      }
+
+      if (state == 1) {
+        if (caseCount == MAX_CASES) {
+          error(
+              "Too many cases in switch.");
+        } else {
+          caseEnds[caseCount++] =
+              emitJump(OP_JUMP);
+        }
+
+        patchJump(
+            previousCaseSkip);
+
+        emitByte(OP_POP);
+      }
+
+      if (caseType == TOKEN_CASE) {
+        state = 1;
+
+//> compile-switch-case
+        emitByte(OP_DUP);
+
+        expression();
+
+        consume(
+            TOKEN_COLON,
+            "Expect ':' after case value.");
+
+        emitByte(OP_EQUAL);
+
+        previousCaseSkip =
+            emitJump(
+                OP_JUMP_IF_FALSE);
+
+        emitByte(OP_POP);
+//< compile-switch-case
+      } else {
+        state = 2;
+
+        consume(
+            TOKEN_COLON,
+            "Expect ':' after default.");
+
+        previousCaseSkip = -1;
+      }
+    } else {
+      if (state == 0) {
+        error(
+            "Can't have statements before any case.");
+      }
+
+      statement();
+    }
+  }
+
+  if (state == 1) {
+    patchJump(
+        previousCaseSkip);
+
+    emitByte(OP_POP);
+  }
+
+  for (int i = 0;
+       i < caseCount;
+       i++) {
+
+    patchJump(
+        caseEnds[i]);
+  }
+
+  // Pops the hidden switch-value local.
+  endScope();
+}
+//< switch-statement
 //> Jumping Back and Forth while-statement
 static void whileStatement() {
 //> loop-start
@@ -1626,6 +1759,7 @@ static void synchronize() {
       case TOKEN_LET:
       case TOKEN_FOR:
       case TOKEN_IF:
+      case TOKEN_SWITCH:
       case TOKEN_WHILE:
       case TOKEN_PRINT:
       case TOKEN_RETURN:
@@ -1689,6 +1823,10 @@ static void statement() {
   } else if (match(TOKEN_RETURN)) {
     returnStatement();
 //< Calls and Functions match-return
+//> parse-switch
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
+//< parse-switch
 //> Jumping Back and Forth parse-while
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
