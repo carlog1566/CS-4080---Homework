@@ -66,6 +66,10 @@ typedef struct {
 //< parse-rule
 //> Local Variables local-struct
 
+//> local-max
+#define LOCAL_MAX 1024
+//< local-max
+
 typedef struct {
   Token name;
   int depth;
@@ -79,7 +83,7 @@ typedef struct {
 //< Local Variables local-struct
 //> Closures upvalue-struct
 typedef struct {
-  uint8_t index;
+  uint16_t index;
   bool isLocal;
 //> immutable-upvalue-field
   bool isMutable;
@@ -112,7 +116,7 @@ typedef struct Compiler {
   FunctionType type;
 
 //< Calls and Functions function-fields
-  Local locals[UINT8_COUNT];
+  Local locals[LOCAL_MAX];
   int localCount;
 //> Closures upvalues-array
   Upvalue upvalues[UINT8_COUNT];
@@ -249,6 +253,31 @@ static void emitLoop(int loopStart) {
   emitByte(offset & 0xff);
 }
 //< Jumping Back and Forth emit-loop
+//> emit-local-instruction
+static void emitLocalInstruction(
+    uint8_t shortOp,
+    uint8_t longOp,
+    int slot) {
+
+  if (slot <= UINT8_MAX) {
+    emitBytes(
+        shortOp,
+        (uint8_t)slot);
+
+    return;
+  }
+
+  emitByte(longOp);
+
+  emitByte(
+      (uint8_t)(
+          (slot >> 8) & 0xff));
+
+  emitByte(
+      (uint8_t)(
+          slot & 0xff));
+}
+//< emit-local-instruction
 //> Jumping Back and Forth emit-jump
 static int emitJump(uint8_t instruction) {
   emitByte(instruction);
@@ -531,7 +560,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 //> Closures add-upvalue
 static int addUpvalue(
     Compiler* compiler,
-    uint8_t index,
+    uint16_t index,
     bool isLocal,
     bool isMutable) {
 
@@ -594,7 +623,7 @@ static int resolveUpvalue(
 
     return addUpvalue(
         compiler,
-        (uint8_t)local,
+        (uint16_t)local,
         true,
         isMutable);
 //< capture-local-mutability
@@ -614,7 +643,7 @@ static int resolveUpvalue(
 
     return addUpvalue(
         compiler,
-        (uint8_t)upvalue,
+        (uint16_t)upvalue,
         false,
         isMutable);
 //< capture-upvalue-mutability
@@ -628,7 +657,7 @@ static void addLocal(
     Token name,
     bool isMutable) {
 
-  if (current->localCount == UINT8_COUNT) {
+  if (current->localCount == LOCAL_MAX) {
     error("Too many local variables in function.");
     return;
   }
@@ -879,6 +908,7 @@ static void namedVariable(
   uint8_t setOp;
 
   bool isMutable = true;
+  bool isLocalVariable = false;
 
   int arg =
       resolveLocal(current, &name);
@@ -887,10 +917,10 @@ static void namedVariable(
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
 
-//> local-mutability
+    isLocalVariable = true;
+
     isMutable =
         current->locals[arg].isMutable;
-//< local-mutability
   } else if (
       (arg = resolveUpvalue(
           current,
@@ -899,40 +929,52 @@ static void namedVariable(
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
 
-//> upvalue-mutability
     isMutable =
         current->upvalues[arg].isMutable;
-//< upvalue-mutability
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
 
-//> global-mutability
     isMutable =
         !isGlobalImmutable(&name);
-//< global-mutability
   }
 
   if (canAssign &&
       match(TOKEN_EQUAL)) {
 
-//> immutable-assignment-error
     if (!isMutable) {
       error(
           "Can't assign to immutable variable.");
     }
-//< immutable-assignment-error
 
     expression();
 
-    emitBytes(
-        setOp,
-        (uint8_t)arg);
+    if (isLocalVariable) {
+//> emit-wide-set-local
+      emitLocalInstruction(
+          OP_SET_LOCAL,
+          OP_SET_LOCAL_LONG,
+          arg);
+//< emit-wide-set-local
+    } else {
+      emitBytes(
+          setOp,
+          (uint8_t)arg);
+    }
   } else {
-    emitBytes(
-        getOp,
-        (uint8_t)arg);
+    if (isLocalVariable) {
+//> emit-wide-get-local
+      emitLocalInstruction(
+          OP_GET_LOCAL,
+          OP_GET_LOCAL_LONG,
+          arg);
+//< emit-wide-get-local
+    } else {
+      emitBytes(
+          getOp,
+          (uint8_t)arg);
+    }
   }
 }
 //< Global Variables named-variable-signature
@@ -1245,13 +1287,25 @@ static void function(FunctionType type) {
 //> Closures emit-closure
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 //< Closures emit-closure
-//> Closures capture-upvalues
-
+//> emit-wide-upvalues
   for (int i = 0; i < function->upvalueCount; i++) {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+    emitByte(
+        compiler.upvalues[i].isLocal
+            ? 1
+            : 0);
+
+    uint16_t index =
+        compiler.upvalues[i].index;
+
+    emitByte(
+        (uint8_t)(
+            (index >> 8) & 0xff));
+
+    emitByte(
+        (uint8_t)(
+            index & 0xff));
   }
-//< Closures capture-upvalues
+//< emit-wide-upvalues
 }
 //< Calls and Functions compile-function
 //> Methods and Initializers method

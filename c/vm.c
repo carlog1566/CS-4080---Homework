@@ -620,6 +620,16 @@ static InterpretResult run() {
         break;
       }
 //< Local Variables interpret-get-local
+//> interpret-get-local-long
+      case OP_GET_LOCAL_LONG: {
+        uint16_t slot = READ_SHORT();
+
+        push(
+            frame->slots[slot]);
+
+        break;
+      }
+//< interpret-get-local-long
 //> Local Variables interpret-set-local
       case OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE();
@@ -632,6 +642,16 @@ static InterpretResult run() {
         break;
       }
 //< Local Variables interpret-set-local
+//> interpret-set-local-long
+      case OP_SET_LOCAL_LONG: {
+        uint16_t slot = READ_SHORT();
+
+        frame->slots[slot] =
+            peek(0);
+
+        break;
+      }
+//< interpret-set-local-long
 //> Global Variables interpret-get-global
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
@@ -886,8 +906,13 @@ static InterpretResult run() {
         push(OBJ_VAL(closure));
 //> interpret-capture-upvalues
         for (int i = 0; i < closure->upvalueCount; i++) {
-          uint8_t isLocal = READ_BYTE();
-          uint8_t index = READ_BYTE();
+//> read-wide-upvalue
+          uint8_t isLocal =
+              READ_BYTE();
+
+          uint16_t index =
+              READ_SHORT();
+//< read-wide-upvalue
           if (isLocal) {
             closure->upvalues[i] =
                 captureUpvalue(frame->slots + index);

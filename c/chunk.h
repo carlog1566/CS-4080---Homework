@@ -26,10 +26,16 @@ OP_CONSTANT_LONG,
 //> Local Variables get-local-op
   OP_GET_LOCAL,
 //< Local Variables get-local-op
+//> wide-local-ops
+  OP_GET_LOCAL_LONG,
+//< wide-local-ops
 //> Local Variables set-local-op
   OP_SET_LOCAL,
 //< Local Variables set-local-op
 //> Global Variables get-global-op
+//> wide-set-local-op
+  OP_SET_LOCAL_LONG,
+//< wide-set-local-op 
   OP_GET_GLOBAL,
 //< Global Variables get-global-op
 //> Global Variables define-global-op
