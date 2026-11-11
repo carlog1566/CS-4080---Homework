@@ -1,0 +1,17 @@
+fun addOne(value) {
+  return value + 1;
+}
+
+fun run() {
+  var value = 0;
+  var i = 0;
+
+  while (i < 3000000) {
+    value = addOne(value);
+    i = i + 1;
+  }
+
+  return value;
+}
+
+print run();

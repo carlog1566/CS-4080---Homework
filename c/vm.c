@@ -486,11 +486,16 @@ static void concatenate() {
 static InterpretResult run() {
 //> Calls and Functions run
   CallFrame* frame = &vm.frames[vm.frameCount - 1];
+//> register-ip
+  register uint8_t* ip = frame->ip;
+//< register-ip 
 
 /* A Virtual Machine run < Calls and Functions run
 #define READ_BYTE() (*vm.ip++)
 */
-#define READ_BYTE() (*frame->ip++)
+//> register-ip-read-byte
+#define READ_BYTE() (*ip++)
+//< register-ip-read-byte
 /* A Virtual Machine read-constant < Calls and Functions run
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 */
@@ -499,9 +504,11 @@ static InterpretResult run() {
 #define READ_SHORT() \
     (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
 */
+//> register-ip-read-short
 #define READ_SHORT() \
-    (frame->ip += 2, \
-    (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+    (ip += 2, \
+    (uint16_t)((ip[-2] << 8) | ip[-1]))
+//< register-ip-read-short
 
 /* Calls and Functions run < Closures read-constant
 #define READ_CONSTANT() \
@@ -512,12 +519,14 @@ static InterpretResult run() {
     (frame->closure->function->chunk.constants.values[READ_BYTE()])
 //< Closures read-constant
 //> read-long
+//> register-ip-read-long
 #define READ_LONG() \
-  (frame->ip += 3, \
+  (ip += 3, \
   (uint32_t)( \
-      frame->ip[-3] | \
-      (frame->ip[-2] << 8) | \
-      (frame->ip[-1] << 16)))
+      ip[-3] | \
+      (ip[-2] << 8) | \
+      (ip[-1] << 16)))
+//< register-ip-read-long
 
 #define READ_CONSTANT_LONG() \
   (frame->closure->function->chunk \
@@ -528,6 +537,13 @@ static InterpretResult run() {
 //> Global Variables read-string
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 //< Global Variables read-string
+//> register-ip-runtime-error
+#define RUNTIME_ERROR(...) \
+    do { \
+      frame->ip = ip; \
+      runtimeError(__VA_ARGS__); \
+    } while (false)
+//< register-ip-runtime-error
 /* A Virtual Machine binary-op < Types of Values binary-op
 #define BINARY_OP(op) \
     do { \
@@ -536,18 +552,18 @@ static InterpretResult run() {
       push(a op b); \
     } while (false)
 */
-//> Types of Values binary-op
+//> register-ip-binary-error
 #define BINARY_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-        runtimeError("Operands must be numbers."); \
+        RUNTIME_ERROR("Operands must be numbers."); \
         return INTERPRET_RUNTIME_ERROR; \
       } \
       double b = AS_NUMBER(pop()); \
       double a = AS_NUMBER(pop()); \
       push(valueType(a op b)); \
     } while (false)
-//< Types of Values binary-op
+//< register-ip-binary-error
 
   for (;;) {
 //> trace-execution
@@ -569,10 +585,13 @@ static InterpretResult run() {
     disassembleInstruction(&frame->function->chunk,
         (int)(frame->ip - frame->function->chunk.code));
 */
-//> Closures disassemble-instruction
-    disassembleInstruction(&frame->closure->function->chunk,
-        (int)(frame->ip - frame->closure->function->chunk.code));
-//< Closures disassemble-instruction
+//> register-ip-trace
+  disassembleInstruction(
+      &frame->closure->function->chunk,
+      (int)(
+          ip -
+          frame->closure->function->chunk.code));
+//< register-ip-trace
 #endif
 
 //< trace-execution
@@ -660,7 +679,7 @@ static InterpretResult run() {
         ObjString* name = READ_STRING();
         Value value;
         if (!tableGet(&vm.globals, OBJ_VAL(name), &value)) {
-          runtimeError("Undefined variable '%s'.", name->chars);
+          RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
         push(value);
@@ -680,7 +699,7 @@ static InterpretResult run() {
         ObjString* name = READ_STRING();
         if (tableSet(&vm.globals, OBJ_VAL(name), peek(0))) {
           tableDelete(&vm.globals, OBJ_VAL(name));
-          runtimeError("Undefined variable '%s'.", name->chars);
+          RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -704,7 +723,7 @@ static InterpretResult run() {
       case OP_GET_PROPERTY: {
 //> get-not-instance
         if (!IS_INSTANCE(peek(0))) {
-          runtimeError("Only instances have properties.");
+          RUNTIME_ERROR("Only instances have properties.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -725,6 +744,9 @@ static InterpretResult run() {
         runtimeError("Undefined property '%s'.", name->chars);
         return INTERPRET_RUNTIME_ERROR;
 */
+//> save-ip-before-bind
+        frame->ip = ip;
+//< save-ip-before-bind
 //> Methods and Initializers get-method
         if (!bindMethod(instance->klass, name)) {
           return INTERPRET_RUNTIME_ERROR;
@@ -737,7 +759,7 @@ static InterpretResult run() {
       case OP_SET_PROPERTY: {
 //> set-not-instance
         if (!IS_INSTANCE(peek(1))) {
-          runtimeError("Only instances have fields.");
+          RUNTIME_ERROR("Only instances have fields.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -754,7 +776,9 @@ static InterpretResult run() {
       case OP_GET_SUPER: {
         ObjString* name = READ_STRING();
         ObjClass* superclass = AS_CLASS(pop());
-        
+//> save-ip-before-super-bind
+        frame->ip = ip;
+//< save-ip-before-super-bind
         if (!bindMethod(superclass, name)) {
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -794,7 +818,7 @@ static InterpretResult run() {
           double a = AS_NUMBER(pop());
           push(NUMBER_VAL(a + b));
         } else {
-          runtimeError(
+          RUNTIME_ERROR(
               "Operands must be two numbers or two strings.");
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -814,7 +838,7 @@ static InterpretResult run() {
 //> Types of Values op-negate
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
-          runtimeError("Operand must be a number.");
+          RUNTIME_ERROR("Operand must be a number.");
           return INTERPRET_RUNTIME_ERROR;
         }
 //> negate-in-place
@@ -837,9 +861,9 @@ static InterpretResult run() {
 /* Jumping Back and Forth op-jump < Calls and Functions jump
         vm.ip += offset;
 */
-//> Calls and Functions jump
-        frame->ip += offset;
-//< Calls and Functions jump
+//> register-ip-jump
+        ip += offset;
+//< register-ip-jump
         break;
       }
 //< Jumping Back and Forth op-jump
@@ -850,7 +874,7 @@ static InterpretResult run() {
         if (isFalsey(peek(0))) vm.ip += offset;
 */
 //> Calls and Functions jump-if-false
-        if (isFalsey(peek(0))) frame->ip += offset;
+        if (isFalsey(peek(0))) ip += offset;
 //< Calls and Functions jump-if-false
         break;
       }
@@ -862,7 +886,7 @@ static InterpretResult run() {
         vm.ip -= offset;
 */
 //> Calls and Functions loop
-        frame->ip -= offset;
+        ip -= offset;
 //< Calls and Functions loop
         break;
       }
@@ -870,35 +894,87 @@ static InterpretResult run() {
 //> Calls and Functions interpret-call
       case OP_CALL: {
         int argCount = READ_BYTE();
-        if (!callValue(peek(argCount), argCount)) {
+
+      //> save-ip-before-call
+        frame->ip = ip;
+      //< save-ip-before-call
+
+        if (!callValue(
+                peek(argCount),
+                argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-//> update-frame-after-call
-        frame = &vm.frames[vm.frameCount - 1];
-//< update-frame-after-call
+
+        frame =
+            &vm.frames[
+                vm.frameCount - 1];
+
+      //> load-ip-after-call
+        ip = frame->ip;
+      //< load-ip-after-call
+
         break;
       }
 //< Calls and Functions interpret-call
 //> Methods and Initializers interpret-invoke
       case OP_INVOKE: {
-        ObjString* method = READ_STRING();
-        int argCount = READ_BYTE();
-        if (!invoke(method, argCount)) {
+        ObjString* method =
+            READ_STRING();
+
+        int argCount =
+            READ_BYTE();
+
+      //> save-ip-before-invoke
+        frame->ip = ip;
+      //< save-ip-before-invoke
+
+        if (!invoke(
+                method,
+                argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-        frame = &vm.frames[vm.frameCount - 1];
+
+        frame =
+            &vm.frames[
+                vm.frameCount - 1];
+
+      //> load-ip-after-invoke
+        ip = frame->ip;
+      //< load-ip-after-invoke
+
         break;
       }
 //< Methods and Initializers interpret-invoke
 //> Superclasses interpret-super-invoke
       case OP_SUPER_INVOKE: {
-        ObjString* method = READ_STRING();
-        int argCount = READ_BYTE();
-        ObjClass* superclass = AS_CLASS(pop());
-        if (!invokeFromClass(superclass, method, argCount)) {
+        ObjString* method =
+            READ_STRING();
+
+        int argCount =
+            READ_BYTE();
+
+        ObjClass* superclass =
+            AS_CLASS(pop());
+
+      //> save-ip-before-super-invoke
+        frame->ip = ip;
+      //< save-ip-before-super-invoke
+
+        if (!invokeFromClass(
+                superclass,
+                method,
+                argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-        frame = &vm.frames[vm.frameCount - 1];
+
+        frame =
+            &vm.frames[
+                vm.frameCount - 1];
+
+      //> load-ip-after-super-invoke
+        ip = frame->ip;
+      //< load-ip-after-super-invoke
+
         break;
       }
 //< Superclasses interpret-super-invoke
@@ -958,6 +1034,9 @@ static InterpretResult run() {
         vm.stackTop = frame->slots;
         push(result);
         frame = &vm.frames[vm.frameCount - 1];
+//> load-ip-after-return
+        ip = frame->ip;
+//< load-ip-after-return
         break;
 //< Calls and Functions interpret-return
       }
@@ -971,7 +1050,7 @@ static InterpretResult run() {
         Value superclass = peek(1);
 //> inherit-non-class
         if (!IS_CLASS(superclass)) {
-          runtimeError("Superclass must be a class.");
+          RUNTIME_ERROR("Superclass must be a class.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -1006,6 +1085,9 @@ static InterpretResult run() {
 //< undef-binary-op
 #undef READ_LONG
 #undef READ_CONSTANT_LONG
+//> undef-runtime-error
+#undef RUNTIME_ERROR
+//< undef-runtime-error
 }
 //< run
 //> omit
