@@ -84,6 +84,81 @@ static bool sqrtNative(
   return true;
 }
 //< sqrt-native
+//> abs-native
+static bool absNative(
+    int argCount,
+    Value* args) {
+
+  if (!IS_NUMBER(args[0])) {
+    return nativeError(
+        args,
+        "abs() expects a number.");
+  }
+
+  double value =
+      AS_NUMBER(args[0]);
+
+  args[-1] =
+      NUMBER_VAL(
+          value < 0
+              ? -value
+              : value);
+
+  return true;
+}
+//< abs-native
+//> min-native
+static bool minNative(
+    int argCount,
+    Value* args) {
+
+  if (!IS_NUMBER(args[0]) ||
+      !IS_NUMBER(args[1])) {
+
+    return nativeError(
+        args,
+        "min() expects two numbers.");
+  }
+
+  double a =
+      AS_NUMBER(args[0]);
+
+  double b =
+      AS_NUMBER(args[1]);
+
+  args[-1] =
+      NUMBER_VAL(
+          a < b ? a : b);
+
+  return true;
+}
+//< min-native
+//> max-native
+static bool maxNative(
+    int argCount,
+    Value* args) {
+
+  if (!IS_NUMBER(args[0]) ||
+      !IS_NUMBER(args[1])) {
+
+    return nativeError(
+        args,
+        "max() expects two numbers.");
+  }
+
+  double a =
+      AS_NUMBER(args[0]);
+
+  double b =
+      AS_NUMBER(args[1]);
+
+  args[-1] =
+      NUMBER_VAL(
+          a > b ? a : b);
+
+  return true;
+}
+//< max-native
 //> reset-stack
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -210,6 +285,13 @@ void initVM() {
 //> define-native-sqrt
   defineNative("sqrt", 1, sqrtNative);
 //< define-native-sqrt
+//> define-math-natives
+defineNative("abs", 1, absNative);
+
+defineNative("min", 2, minNative);
+
+defineNative("max", 2, maxNative);
+//< define-math-natives
 }
 
 void freeVM() {
