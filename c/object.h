@@ -111,7 +111,11 @@ typedef struct {
 //< Calls and Functions obj-function
 //> Calls and Functions obj-native
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+//> native-result-signature
+typedef bool (*NativeFn)(
+    int argCount,
+    Value* args);
+//< native-result-signature
 
 typedef struct {
   Obj obj;

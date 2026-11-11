@@ -11,6 +11,9 @@
 //> Calls and Functions vm-include-time
 #include <time.h>
 //< Calls and Functions vm-include-time
+//> native-math-include
+#include <math.h>
+//< native-math-include
 
 //< vm-include-stdio
 #include "common.h"
@@ -28,10 +31,59 @@
 
 VM vm; // [one]
 //> Calls and Functions clock-native
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static bool clockNative(
+    int argCount,
+    Value* args) {
+
+  args[-1] =
+      NUMBER_VAL(
+          (double)clock() /
+          CLOCKS_PER_SEC);
+
+  return true;
 }
 //< Calls and Functions clock-native
+//> native-error
+static bool nativeError(
+    Value* args,
+    const char* message) {
+
+  args[-1] =
+      OBJ_VAL(
+          copyString(
+              message,
+              (int)strlen(message)));
+
+  return false;
+}
+//< native-error
+//> sqrt-native
+static bool sqrtNative(
+    int argCount,
+    Value* args) {
+
+  if (!IS_NUMBER(args[0])) {
+    return nativeError(
+        args,
+        "sqrt() expects a number.");
+  }
+
+  double value =
+      AS_NUMBER(args[0]);
+
+  if (value < 0) {
+    return nativeError(
+        args,
+        "sqrt() cannot use a negative number.");
+  }
+
+  args[-1] =
+      NUMBER_VAL(
+          sqrt(value));
+
+  return true;
+}
+//< sqrt-native
 //> reset-stack
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -155,6 +207,9 @@ void initVM() {
 
   defineNative("clock", 0, clockNative);
 //< Calls and Functions define-native-clock
+//> define-native-sqrt
+  defineNative("sqrt", 1, sqrtNative);
+//< define-native-sqrt
 }
 
 void freeVM() {
@@ -357,7 +412,6 @@ static bool callValue(Value callee, int argCount) {
         return call(AS_FUNCTION(callee), argCount);
 */
       case OBJ_NATIVE: {
-//> check-native-arity
         ObjNative* native =
             (ObjNative*)AS_OBJ(callee);
 
@@ -369,19 +423,33 @@ static bool callValue(Value callee, int argCount) {
 
           return false;
         }
-//< check-native-arity
 
-        Value result =
-            native->function(
+//> call-native-with-error
+        Value* args =
+            vm.stackTop - argCount;
+
+        if (!native->function(
                 argCount,
-                vm.stackTop - argCount);
+                args)) {
 
-        vm.stackTop -=
-            argCount + 1;
+          if (IS_STRING(args[-1])) {
+            runtimeError(
+                "%s",
+                AS_CSTRING(args[-1]));
+          } else {
+            runtimeError(
+                "Native function failed.");
+          }
 
-        push(result);
+          return false;
+        }
+
+// The native function stored its result
+// in the original callee slot.
+        vm.stackTop -= argCount;
 
         return true;
+//< call-native-with-error
       }
       default:
         break; // Non-callable object type.
