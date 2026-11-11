@@ -97,9 +97,23 @@ ObjInstance* newInstance(ObjClass* klass) {
 }
 //< Classes and Instances new-instance
 //> Calls and Functions new-native
-ObjNative* newNative(NativeFn function) {
-  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
-  native->function = function;
+ObjNative* newNative(
+    NativeFn function,
+    int arity) {
+
+  ObjNative* native =
+      ALLOCATE_OBJ(
+          ObjNative,
+          OBJ_NATIVE);
+
+  native->function =
+      function;
+
+//> store-native-arity
+  native->arity =
+      arity;
+//< store-native-arity
+
   return native;
 }
 //< Calls and Functions new-native
