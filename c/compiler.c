@@ -1330,6 +1330,12 @@ static void function(FunctionType type) {
 /* Calls and Functions compile-function < Closures emit-closure
   emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
 */
+//> skip-empty-closure
+  if (function->upvalueCount == 0) {
+    emitConstant(OBJ_VAL(function));
+    return;
+  }
+//< skip-empty-closure
 //> Closures emit-closure
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 //< Closures emit-closure

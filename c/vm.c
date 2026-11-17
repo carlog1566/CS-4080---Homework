@@ -197,7 +197,7 @@ static void runtimeError(const char* format, ...) {
     ObjFunction* function = frame->function;
 */
 //> Closures runtime-error-function
-    ObjFunction* function = frame->closure->function;
+    ObjFunction* function = frame->function;
 //< Closures runtime-error-function
     size_t instruction = frame->ip - function->chunk.code - 1;
     fprintf(stderr, "[line %d] in ",
@@ -414,44 +414,50 @@ static Value peek(int distance) {
 static bool call(ObjFunction* function, int argCount) {
 */
 //> Calls and Functions call
-//> Closures call-signature
-static bool call(ObjClosure* closure, int argCount) {
-//< Closures call-signature
-/* Calls and Functions check-arity < Closures check-arity
+//> optional-closure-call
+static bool call(
+    Value callee,
+    int argCount) {
+
+  ObjClosure* closure = NULL;
+  ObjFunction* function;
+
+  if (IS_CLOSURE(callee)) {
+    closure = AS_CLOSURE(callee);
+    function = closure->function;
+  } else {
+    function = AS_FUNCTION(callee);
+  }
+
   if (argCount != function->arity) {
-    runtimeError("Expected %d arguments but got %d.",
-        function->arity, argCount);
-*/
-//> Closures check-arity
-  if (argCount != closure->function->arity) {
-    runtimeError("Expected %d arguments but got %d.",
-        closure->function->arity, argCount);
-//< Closures check-arity
-//> check-arity
+    runtimeError(
+        "Expected %d arguments but got %d.",
+        function->arity,
+        argCount);
+
     return false;
   }
 
-//< check-arity
-//> check-overflow
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow.");
     return false;
   }
 
-//< check-overflow
-  CallFrame* frame = &vm.frames[vm.frameCount++];
-/* Calls and Functions call < Closures call-init-closure
+  CallFrame* frame =
+      &vm.frames[vm.frameCount++];
+
   frame->function = function;
-  frame->ip = function->chunk.code;
-*/
-//> Closures call-init-closure
   frame->closure = closure;
-  frame->ip = closure->function->chunk.code;
-//< Closures call-init-closure
-  frame->slots = vm.stackTop - argCount - 1;
+
+  frame->ip =
+      function->chunk.code;
+
+  frame->slots =
+      vm.stackTop - argCount - 1;
+
   return true;
 }
-//< Calls and Functions call
+//< optional-closure-call
 //> Calls and Functions call-value
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
@@ -473,7 +479,7 @@ static bool callValue(Value callee, int argCount) {
         Value initializer;
         if (tableGet(&klass->methods, OBJ_VAL(vm.initString),
                      &initializer)) {
-          return call(AS_CLOSURE(initializer), argCount);
+          return call(initializer, argCount);
 //> no-init-arity-error
         } else if (argCount != 0) {
           runtimeError("Expected 0 arguments but got %d.",
@@ -485,10 +491,11 @@ static bool callValue(Value callee, int argCount) {
         return true;
       }
 //< Classes and Instances call-class
-//> Closures call-value-closure
+//> call-function-or-closure
+      case OBJ_FUNCTION:
       case OBJ_CLOSURE:
-        return call(AS_CLOSURE(callee), argCount);
-//< Closures call-value-closure
+        return call(callee, argCount);
+//< call-function-or-closure
 /* Calls and Functions call-value < Closures call-value-closure
       case OBJ_FUNCTION: // [switch]
         return call(AS_FUNCTION(callee), argCount);
@@ -549,7 +556,7 @@ static bool invokeFromClass(ObjClass* klass, ObjString* name,
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
   }
-  return call(AS_CLOSURE(method), argCount);
+  return call(method, argCount);
 }
 //< Methods and Initializers invoke-from-class
 //> Methods and Initializers invoke
@@ -585,7 +592,7 @@ static bool bindMethod(ObjClass* klass, ObjString* name) {
   }
 
   ObjBoundMethod* bound = newBoundMethod(peek(0),
-                                         AS_CLOSURE(method));
+                                         method);
   pop();
   push(OBJ_VAL(bound));
   return true;
@@ -702,7 +709,7 @@ static InterpretResult run() {
 */
 //> Closures read-constant
 #define READ_CONSTANT() \
-    (frame->closure->function->chunk.constants.values[READ_BYTE()])
+    (frame->function->chunk.constants.values[READ_BYTE()])
 //< Closures read-constant
 //> read-long
 //> register-ip-read-long
@@ -715,7 +722,7 @@ static InterpretResult run() {
 //< register-ip-read-long
 
 #define READ_CONSTANT_LONG() \
-  (frame->closure->function->chunk \
+  (frame->function->chunk \
       .constants.values[READ_LONG()])
 //< read-long
 
@@ -773,10 +780,10 @@ static InterpretResult run() {
 */
 //> register-ip-trace
   disassembleInstruction(
-      &frame->closure->function->chunk,
+      &frame->function->chunk,
       (int)(
           ip -
-          frame->closure->function->chunk.code));
+          frame->function->chunk.code));
 //< register-ip-trace
 #endif
 
@@ -1324,12 +1331,11 @@ InterpretResult interpret(const char* source) {
 /* Calls and Functions interpret < Closures interpret
   call(function, 0);
 */
-//> Closures interpret
-  ObjClosure* closure = newClosure(function);
-  pop();
-  push(OBJ_VAL(closure));
-  call(closure, 0);
-//< Closures interpret
+//> interpret-direct-function
+  if (!call(OBJ_VAL(function), 0)) {
+    return INTERPRET_RUNTIME_ERROR;
+  }
+//< interpret-direct-function
 //< Scanning on Demand vm-interpret-c
 //> Compiling Expressions interpret-chunk
 

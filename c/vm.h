@@ -30,9 +30,10 @@ typedef struct {
 /* Calls and Functions call-frame < Closures call-frame-closure
   ObjFunction* function;
 */
-//> Closures call-frame-closure
+//> optional-closure-frame
+  ObjFunction* function;
   ObjClosure* closure;
-//< Closures call-frame-closure
+//< optional-closure-frame
   uint8_t* ip;
   Value* slots;
 } CallFrame;

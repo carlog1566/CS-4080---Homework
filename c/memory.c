@@ -104,14 +104,17 @@ static void blackenObject(Obj* object) {
 
 //< log-blacken-object
   switch (object->type) {
-//> Methods and Initializers blacken-bound-method
-    case OBJ_BOUND_METHOD: {
-      ObjBoundMethod* bound = (ObjBoundMethod*)object;
-      markValue(bound->receiver);
-      markObject((Obj*)bound->method);
-      break;
-    }
-//< Methods and Initializers blacken-bound-method
+//> blacken-bound-method-value
+  case OBJ_BOUND_METHOD: {
+    ObjBoundMethod* bound =
+        (ObjBoundMethod*)object;
+
+    markValue(bound->receiver);
+    markValue(bound->method);
+
+    break;
+  }
+//< blacken-bound-method-value
 //> Classes and Instances blacken-class
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
@@ -243,12 +246,15 @@ static void markRoots() {
   for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
     markValue(*slot);
   }
-//> mark-closures
+//> mark-frame-functions
+for (int i = 0; i < vm.frameCount; i++) {
+  markObject(
+      (Obj*)vm.frames[i].function);
 
-  for (int i = 0; i < vm.frameCount; i++) {
-    markObject((Obj*)vm.frames[i].closure);
-  }
-//< mark-closures
+  markObject(
+      (Obj*)vm.frames[i].closure);
+}
+//< mark-frame-functions
 //> mark-open-upvalues
 
   for (ObjUpvalue* upvalue = vm.openUpvalues;

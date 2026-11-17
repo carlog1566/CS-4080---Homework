@@ -187,13 +187,16 @@ typedef struct {
 typedef struct {
   Obj obj;
   Value receiver;
-  ObjClosure* method;
+
+//> bound-method-value
+  Value method;
+//< bound-method-value
 } ObjBoundMethod;
 
 //< Methods and Initializers obj-bound-method
 //> Methods and Initializers new-bound-method-h
 ObjBoundMethod* newBoundMethod(Value receiver,
-                               ObjClosure* method);
+                               Value method);
 //< Methods and Initializers new-bound-method-h
 //> Classes and Instances new-class-h
 ObjClass* newClass(ObjString* name);
