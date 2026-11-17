@@ -1,0 +1,51 @@
+//> vector-constructor
+fun Vector(x, y) {
+  fun getX() {
+    return x;
+  }
+
+  fun getY() {
+    return y;
+  }
+
+  fun add(other) {
+    return Vector(
+        x + other("getX")(),
+        y + other("getY")());
+  }
+
+  fun vector(method) {
+    if (method == "getX") {
+      return getX;
+    }
+
+    if (method == "getY") {
+      return getY;
+    }
+
+    if (method == "add") {
+      return add;
+    }
+
+    return nil;
+  }
+
+  return vector;
+}
+//< vector-constructor
+
+//> vector-example
+var a = Vector(2, 3);
+var b = Vector(4, 5);
+
+print a("getX")();
+print a("getY")();
+
+print b("getX")();
+print b("getY")();
+
+var c = a("add")(b);
+
+print c("getX")();
+print c("getY")();
+//< vector-example
