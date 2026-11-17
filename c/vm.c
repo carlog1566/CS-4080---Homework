@@ -1202,6 +1202,11 @@ static InterpretResult run() {
         pop();
         break;
 //< Closures interpret-close-upvalue
+//> interpret-close-loop-variable
+      case OP_CLOSE_LOOP_VARIABLE:
+        closeUpvalues(vm.stackTop - 1);
+        break;
+//< interpret-close-loop-variable
       case OP_RETURN: {
 /* A Virtual Machine print-return < Global Variables op-return
         printValue(pop());

@@ -288,6 +288,10 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     case OP_CLOSE_UPVALUE:
       return simpleInstruction("OP_CLOSE_UPVALUE", offset);
 //< Closures disassemble-close-upvalue
+//> disassemble-close-loop-variable
+    case OP_CLOSE_LOOP_VARIABLE:
+      return simpleInstruction("OP_CLOSE_LOOP_VARIABLE", offset);
+//< disassemble-close-loop-variable
     case OP_RETURN:
       return simpleInstruction("OP_RETURN", offset);
 //> Classes and Instances disassemble-class

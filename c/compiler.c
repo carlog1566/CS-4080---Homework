@@ -1553,15 +1553,21 @@ static void forStatement() {
       TOKEN_LEFT_PAREN,
       "Expect '(' after 'for'.");
 
+//> track-loop-variable
+  bool hasLoopVariable = false;
+
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
   } else if (match(TOKEN_VAR)) {
     varDeclaration();
+    hasLoopVariable = true;
   } else if (match(TOKEN_LET)) {
     letDeclaration();
+    hasLoopVariable = true;
   } else {
     expressionStatement();
   }
+//< track-loop-variable
 
 //> begin-for-loop
   LoopCompiler loop;
@@ -1597,30 +1603,38 @@ static void forStatement() {
     emitByte(OP_POP);
   }
 
-  if (!match(TOKEN_RIGHT_PAREN)) {
+//> fresh-loop-variable
+  bool hasIncrement =
+      !check(TOKEN_RIGHT_PAREN);
+
+  if (hasLoopVariable || hasIncrement) {
     int bodyJump =
         emitJump(OP_JUMP);
 
-    int incrementStart =
+    // Both continue and normal iteration
+    // advance through this section.
+    loop.start =
         currentChunk()->count;
 
-    expression();
+    if (hasLoopVariable) {
+      emitByte(
+          OP_CLOSE_LOOP_VARIABLE);
+    }
 
-    emitByte(OP_POP);
-
-    consume(
-        TOKEN_RIGHT_PAREN,
-        "Expect ')' after for clauses.");
+    if (hasIncrement) {
+      expression();
+      emitByte(OP_POP);
+    }
 
     emitLoop(conditionStart);
 
-//> continue-to-increment
-    loop.start =
-        incrementStart;
-//< continue-to-increment
-
     patchJump(bodyJump);
   }
+
+  consume(
+      TOKEN_RIGHT_PAREN,
+      "Expect ')' after for clauses.");
+//< fresh-loop-variable
 
   statement();
 

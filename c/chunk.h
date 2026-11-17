@@ -102,6 +102,9 @@ OP_CONSTANT_LONG,
 //> Closures close-upvalue-op
   OP_CLOSE_UPVALUE,
 //< Closures close-upvalue-op
+//> close-loop-variable-op
+  OP_CLOSE_LOOP_VARIABLE,
+//< close-loop-variable-op
   OP_RETURN,
 //> Classes and Instances class-op
   OP_CLASS,
